@@ -1,0 +1,152 @@
+---
+title: "Housing Price Analysis"
+author: "Zarif Ishfar"
+date: '2022-02-03'
+output:
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+  pdf_document:
+    template: template.tex
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+lang: en
+subtitle: Using regression to find which variables have been affecting the median 
+titlepage: yes
+titlepage-color: 0C254F
+titlepage-text-color: FFFFFF
+titlepage-rule-color: FFFFFF
+titlepage-rule-height: 2
+urlcolor: blue
+linkcolor: black
+---
+
+
+\newpage
+
+# Introduction
+
+This report will look at a data set of 20433 homes in California with different variables such as number of bedrooms and bathrooms, population,age of homes, income of people living in the area and if the homes are located near a bay or ocean. I will use multiple linear regression to find which variables influence the price of homes the most. This report will be made for realtors so they can figure out how much to price homes in California.
+
+# Method
+
+First, since this is a data set of over 20,000 homes, I will randomly sample a data set of 1000 homes. Then, I will split the set in half. One half will be used to find the best model and the other half will be used to test the model and see if we have satisfied all our assumptions.
+I will be using multiple linear regression to find which predictors or variables is able to explain the median price of house in California.
+
+```{r, include  = FALSE, message = FALSE}
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80))
+library(tidyverse)
+library(readxl)
+library(alr4)
+library(leaps)
+library(MASS)
+data <- read.csv("C:/Users/zarif/OneDrive/Desktop/STA 302/housing.csv", header = T)
+```
+
+## This is where I will be randomly sampling 1000 homes and splitting the data set in half.
+
+```{r}
+set.seed(1004196247)
+rows <- sample(1:nrow(data), 1000, replace=FALSE)
+housing <- data[rows,]
+
+train <- housing[sample(1:nrow(housing), 500, replace=F), ]
+
+test <- housing[which(!(housing$X %in% train$X)),]
+```
+
+### First, we will fit a regression model with all predictors and see if they all have an impact on house price.
+
+```{r}
+mod1 <- lm(train$median_house_value ~ .,data=train[,-1])
+summary(mod1)
+```
+
+From the summary output we can see there are multiple variables with a p-value of over 0.05. This means they have little affect on the model and do not influence the house price significantly. Therefore, we can remove those factors. Lets fit a new model.
+
+```{r}
+mod2 <- lm(train$median_house_value ~ train$housing_median_age+
+                train$total_rooms+train$total_bedrooms+train$population+train$households+
+                train$median_income+train$near_bay+train$oneh_ocean+train$inland)
+summary(mod2)
+```
+
+From the output we can see there are still variables with a high p-value. Next, we can see if there is any multicollinearity. This is when there is a relationship between two predictors which can affect our model. We can check this by using the variance inflation factor. If the number is high, then there could be a relationship between that predictor and others. 
+
+```{r}
+vif(mod2)
+```
+
+From the output we can see that households and bedrooms have a high VIF. We can run 2 separate models to see if there is a significant relationship between theses two predictors and the others.
+
+```{r}
+hsmod <- lm(train$households ~ train$housing_median_age
+            +train$total_rooms+train$total_bedrooms+train$population+train$median_income
+            +train$near_bay+train$oneh_ocean+train$inland)
+summary(hsmod)
+
+bdmod <- lm(train$total_bedrooms ~ train$housing_median_age+
+              train$total_rooms+train$households+train$population+train$median_income+
+              train$near_bay+train$oneh_ocean+train$inland)
+summary(bdmod)
+```
+
+From the summary, it seems we can remove some variables. These include median house age, total rooms, near bay and near ocean. 
+Therefore our final model will include total bedrooms, population, median income and if the house is inland or not.
+
+```{r}
+fullt <- lm(train$median_house_value ~ train$total_bedrooms + 
+    train$population + train$median_income + train$inland)
+summary(fullt)
+```
+
+One thing we can do is perform a transformation on the data to see if it makes a difference. We can do a log transformation on house price and see if that will make the p-value increase.
+
+
+```{r}
+fullog <- lm(log(train$median_house_value) ~ train$total_bedrooms + 
+    train$population + train$median_income + train$inland)
+summary(fullog)
+```
+
+From the output we can see that the log transformation of the response improves the p-value.
+
+\newpage
+
+# Testing
+
+### Now let's fit this model into out testing data set and make sure we satisfy all conditions. 
+
+```{r}
+full <- lm(log(test$median_house_value) ~ test$total_bedrooms + 
+    test$population + test$median_income + test$inland)
+```
+
+The first conditions is to make sure all the errors are as close to 0 as possible.
+
+```{r}
+plot(rstandard(full) ~ fitted(full))
+```
+
+From the graph we can see that most of the errors are within 3 points of 0.
+
+
+Next we will check that the errors are normal.
+
+```{r}
+qqnorm(rstandard(full))
+qqline(rstandard(full))
+```
+
+From the plot we can see that the errors follow a straight line and therefore all our assumptions are satisfied.
+
+\newpage
+
+# Conclusion
+
+Therefore, we can say that the variables that have the most affect on house prices in California are the number of bedrooms, the local population, the income of people living in the area, and whether or not the house is inland. This would mean these are the factors realtors will have to take into consideration when pricing homes in California.
+
