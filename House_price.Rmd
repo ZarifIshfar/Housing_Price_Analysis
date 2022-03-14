@@ -44,7 +44,8 @@ library(readxl)
 library(alr4)
 library(leaps)
 library(MASS)
-data <- read.csv("C:/Users/zarif/OneDrive/Desktop/STA 302/housing.csv", header = T)
+house_data <- "https://raw.githubusercontent.com/ZarifIshfar/Housing_Price_Analysis/main/housing.csv"
+data <- read_csv(url(house_data))
 ```
 
 ## This is where I will be randomly sampling 1000 homes and splitting the data set in half.
